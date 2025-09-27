@@ -104,11 +104,11 @@ fi
 
 if [ "${PROJ}" = "" ]; then
   for dir in ./src/*/ ; do
-    PROJ="${PROJ} ${dir}/...";
+    PROJ="${PROJ} ${dir}...";
   done
 fi
 
-if [ $USE_DOCKER -eq 0 ] && [ -n "${COVERAGE}" ]; then
+if [ -n "${COVERAGE}" ]; then
   rm -rf "./${TEST_COVERAGE_DIR_PATH}";
   mkdir -p "./${TEST_COVERAGE_DIR_PATH}";
 fi
