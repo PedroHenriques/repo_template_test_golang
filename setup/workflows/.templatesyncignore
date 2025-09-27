@@ -1,0 +1,4 @@
+src/
+test/
+setup/local/.env.template
+documentation/app_arch.png

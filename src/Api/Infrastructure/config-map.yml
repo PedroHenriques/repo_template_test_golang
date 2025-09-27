@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${SERVICE}-config-${BUILD_TIMESTAMP}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${SERVICE}
+    env: ${ENVIRONMENT}
+    version: ${IMG_TAG}
+data:
+  DOTNET_ENVIRONMENT: ${DOTNET_ENVIRONMENT}
+  ASPNETCORE_HTTP_PORTS: "${API_MS_PORT}"

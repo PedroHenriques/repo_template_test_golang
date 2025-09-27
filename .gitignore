@@ -1,0 +1,7 @@
+coverageReport/
+release/
+.scannerwork/
+
+.env
+
+.vscode/

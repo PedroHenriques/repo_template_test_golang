@@ -1,0 +1,31 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"    # ← bind on all container interfaces
+
+processors:
+  batch:
+
+exporters:
+  elasticsearch:
+    endpoints: ["http://elasticsearch:9200"]
+    # Using the latest contrib (>=0.122), we can leverage native data‑stream routing:
+    mapping:
+      mode: otel                 # automatic Data Stream: logs-dotnet-default 
+
+    flush:
+      bytes:    5242880          # 5 MiB per bulk request
+      interval: 5s
+
+    retry:
+      enabled:        true
+      max_retries:    3           # updated from deprecated max_requests
+      initial_interval: 200ms
+
+service:
+  pipelines:
+    logs:
+      receivers:  [otlp]
+      processors: [batch]
+      exporters:  [elasticsearch]

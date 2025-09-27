@@ -1,0 +1,7 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "privileged": true,
+  "forwardPorts": [ 9000, 9001, 9002, 9003, 10000 ],
+  "features": {
+  }
+}

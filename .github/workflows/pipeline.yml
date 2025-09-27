@@ -1,0 +1,59 @@
+name: pipeline
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, closed]
+
+jobs:
+  ci:
+    uses: PedroHenriques/ci_cd_workflow_templates/.github/workflows/ci_docker.yml@v1
+    with:
+      environment: "dev"
+      deployable_branch_name: 'main'
+      source_dir_name: 'src'
+      manifest_dir_name: 'Infrastructure'
+      custom_service_file_pattern: 'go.mod'
+      build_file_pattern: 'Dockerfile'
+      deploy_all_services_label_name: 'deploy all services'
+    secrets: inherit
+  
+  # cd-dev:
+  #   needs: ci
+  #   if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.base_ref == 'main' }}
+  #   uses: PedroHenriques/ci_cd_workflow_templates/.github/workflows/cd_docker.yml@v1
+  #   with:
+  #     environment: "dev"
+  #     source_dir_name: 'src'
+  #     manifest_dir_name: 'Infrastructure'
+  #     custom_service_file_pattern: 'go.mod'
+  #     build_file_pattern: 'Dockerfile'
+  #     img_tag: ${{ needs.ci.outputs.img_tag }}
+  #     deploy_all_services_label_name: 'deploy all services'
+  #   secrets: inherit
+  
+  # cd-qa:
+  #   needs: [ci, cd-dev]
+  #   if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.base_ref == 'main' }}
+  #   uses: PedroHenriques/ci_cd_workflow_templates/.github/workflows/cd_docker.yml@v1
+  #   with:
+  #     environment: "qua"
+  #     source_dir_name: 'src'
+  #     manifest_dir_name: 'Infrastructure'
+  #     custom_service_file_pattern: 'go.mod'
+  #     build_file_pattern: 'Dockerfile'
+  #     img_tag: ${{ needs.ci.outputs.img_tag }}
+  #     deploy_all_services_label_name: 'deploy all services'
+  #   secrets: inherit
+
+  # cd-prd:
+  #   needs: [ci, cd-qa]
+  #   if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true && github.base_ref == 'main' }}
+  #   uses: PedroHenriques/ci_cd_workflow_templates/.github/workflows/cd_docker.yml@v1
+  #   with:
+  #     environment: "prd"
+  #     source_dir_name: 'src'
+  #     manifest_dir_name: 'Infrastructure'
+  #     custom_service_file_pattern: 'go.mod'
+  #     build_file_pattern: 'Dockerfile'
+  #     img_tag: ${{ needs.ci.outputs.img_tag }}
+  #     deploy_all_services_label_name: 'deploy all services'
+  #   secrets: inherit

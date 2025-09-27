@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${SERVICE}-deployment-${BUILD_TIMESTAMP}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${SERVICE}
+    env: ${ENVIRONMENT}
+    version: ${IMG_TAG}
+spec:
+  selector:
+    matchLabels:
+      app: ${SERVICE}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: ${SERVICE}
+        env: ${ENVIRONMENT}
+        version: ${IMG_TAG}
+    spec:
+      serviceAccountName: ${SERVICE}-service-account-${BUILD_TIMESTAMP}
+      containers:
+        - name: ${SERVICE}
+          image: ${IMG_NAME}:${IMG_TAG}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: ${API_MS_PORT}
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          envFrom:
+            - configMapRef:
+                name: ${SERVICE}-config-${BUILD_TIMESTAMP}
+            - secretRef:
+                name: ${SERVICE}-secret-${BUILD_TIMESTAMP}
+          resources:
+            requests:
+              memory: ${API_MS_REQ_RAM}
+              cpu: ${API_MS_REQ_CPU}
+            limits:
+              memory: ${API_MS_LIMIT_RAM}
+              cpu: ${API_MS_LIMIT_CPU}

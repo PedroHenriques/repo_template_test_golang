@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE}-service-${BUILD_TIMESTAMP}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${SERVICE}
+    env: ${ENVIRONMENT}
+    version: ${IMG_TAG}
+spec:
+  selector:
+    app: ${SERVICE}
+    env: ${ENVIRONMENT}
+  ports:
+    - protocol: TCP
+      port: ${API_MS_PORT}
+      targetPort: ${API_MS_PORT}
+  type: ClusterIP

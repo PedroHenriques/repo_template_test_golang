@@ -1,0 +1,209 @@
+services:
+  api:
+    image: ${PROJECT_NAME:-myapp}_api:${IMAGE_TAG:-latest}
+    build:
+      context: ../../
+      dockerfile: ./src/Api/Dockerfile
+    container_name: "api"
+    restart: on-failure
+    depends_on:
+      api_db:
+        condition: service_healthy
+      api_redis:
+        condition: service_healthy
+    environment:
+      - DEPLOYMENT_ENV=local
+      - MONGO_CON_STR=mongodb://admin:pw@api_db:27017/admin?authMechanism=SCRAM-SHA-256&replicaSet=rs0
+      - REDIS_CON_STR=api_redis:6379
+      - KAFKA_SCHEMA_REGISTRY_URL=http://schema-registry:8081
+      - KAFKA_CON_STR=broker:29092
+    ports:
+      - ${API_PORT:-10000}:10000
+    networks:
+      - api
+      - apiDb
+      - apiRedis
+      - kafka
+      - myapp_shared
+
+  api_redis:
+    image: redis:7-alpine
+    container_name: "api_redis"
+    restart: on-failure
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass 'password'
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a 'password' ping | grep PONG" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    networks:
+      - apiRedis
+      - myapp_shared
+
+  redis_gui:
+    image: redislabs/redisinsight:latest
+    container_name: "redis_gui"
+    profiles: ["only_if_not_cicd"]
+    restart: on-failure
+    depends_on:
+      api_redis:
+        condition: service_healthy
+    ports:
+      - ${REDIS_GUI_PORT:-9001}:5540
+    networks:
+      - apiRedis
+
+  api_db:
+    image: mongo:8-noble
+    entrypoint:
+      - bash
+      - -c
+      - |
+        openssl rand -base64 756 > /replica.key
+        chmod 400 /replica.key
+        chown 999:999 /replica.key
+        exec docker-entrypoint.sh $$@
+    command: [ "mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017", "-keyFile", "/replica.key" ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    container_name: "api_db"
+    restart: on-failure
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=pw
+      - MONGO_INITDB_DATABASE=MyDb
+    networks:
+      - apiDb
+      - myapp_shared
+
+  # Used to start the replica set in the MongoDb instance (will run once and exit)
+  db_init:
+    image: mongo:8-noble
+    container_name: "db_init"
+    restart: "no"
+    depends_on:
+      api_db:
+        condition: service_healthy
+    command: >
+      mongosh --username admin --password pw --host api_db:27017 --eval ' rs.initiate( {
+         _id : "rs0",
+         members: [
+            { _id: 0, host: "api_db:27017" }
+         ]
+      }) '
+    networks:
+      - apiDb
+
+  api_db_gui:
+    image: mongo-express:latest
+    container_name: "api_db_gui"
+    profiles: ["only_if_not_cicd"]
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=api_db
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
+      - ME_CONFIG_MONGODB_AUTH_USERNAME=admin
+      - ME_CONFIG_MONGODB_AUTH_PASSWORD=pw
+      - ME_CONFIG_BASICAUTH_USERNAME=appUser
+      - ME_CONFIG_BASICAUTH_PASSWORD=appPw
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:pw@api_db:27017/?replicaSet=rs0
+    depends_on:
+      api_db:
+        condition: service_healthy
+    ports:
+      - ${MONGO_GUI_PORT:-9000}:8081
+    networks:
+      - apiDb
+  
+  broker:
+    image: confluentinc/cp-kafka:latest
+    container_name: broker
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    healthcheck:
+      test: ["CMD-SHELL", "cub kafka-ready -b localhost:29092 1 12 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092,CONTROLLER://broker:29093'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@broker:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    networks:
+      - kafka
+      - myapp_shared
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    container_name: schema-registry
+    depends_on:
+      broker:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/subjects > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    networks:
+      - kafka
+      - myapp_shared
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    profiles: ["only_if_not_cicd"]
+    ports:
+      - ${KAFKA_GUI_PORT:-9002}:8080
+    depends_on:
+      broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:29092
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9997
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      DYNAMIC_CONFIG_ENABLED: 'true'
+    networks:
+      - kafka
+
+networks:
+  api:
+  apiDb:
+  apiRedis:
+  kafka:
+  myapp_shared:
+    external: true

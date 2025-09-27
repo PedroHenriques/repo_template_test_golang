@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ${SERVICE}-role-${BUILD_TIMESTAMP}
+  namespace: ${NAMESPACE}
+  labels:
+    app: ${SERVICE}
+    env: ${ENVIRONMENT}
+    version: ${IMG_TAG}
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ${SERVICE}-rolebinding-${BUILD_TIMESTAMP}
+  namespace: ${NAMESPACE}
+subjects:
+  - kind: ServiceAccount
+    name: ${SERVICE}-service-account-${BUILD_TIMESTAMP}
+    namespace: ${NAMESPACE}
+roleRef:
+  kind: Role
+  name: ${SERVICE}-role-${BUILD_TIMESTAMP}
+  apiGroup: rbac.authorization.k8s.io
