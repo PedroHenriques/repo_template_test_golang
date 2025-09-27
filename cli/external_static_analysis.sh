@@ -19,6 +19,21 @@ while [ "$#" -gt 0 ]; do
 done
 
 rm -rf .scannerwork;
+mkdir -p .scannerwork;
+chmod -R a+rwX .scannerwork;
+
+if [ ! -f "${TEST_COVERAGE_DIR_PATH}/${TEST_COVERAGE_FILE_NAME}" ]; then
+  echo "Coverage not found at ${TEST_COVERAGE_DIR_PATH}/${TEST_COVERAGE_FILE_NAME} — generating…";
+  
+  FLAGS="";
+  if [ $RUNNING_IN_PIPELINE -eq 1 ]; then
+    FLAGS="--cicd";
+  elif [ $USE_DOCKER -eq 1 ]; then
+    FLAGS="--docker";
+  fi
+  
+  TEST_COVERAGE_DIR_PATH="${TEST_COVERAGE_DIR_PATH}" TEST_COVERAGE_FILE_NAME="${TEST_COVERAGE_FILE_NAME}" sh cli/coverage.sh ${FLAGS};
+fi
 
 EXTRA_OPTS="";
 PR_KEY="";
