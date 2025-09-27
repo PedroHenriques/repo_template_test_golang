@@ -53,7 +53,7 @@ for gm in ./src/*/go.mod; do
 
   # Extract the repo root module prefix (everything before /<service>)
   root_prefix="$(sed -n 's/^module[[:space:]]\+\(.*\)\/'"${svc}"'$/\1/p' "${gm}")";
-  if [ -n "${root_prefix}" ]; then
+  if [ -z "${root_prefix}" ]; then
     continue;
   fi
 
