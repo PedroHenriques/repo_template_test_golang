@@ -43,3 +43,21 @@ if [ $USE_DOCKER -eq 1 ]; then
 else
   eval "${CMD}";
 fi
+
+# Normalize Go coverprofile paths (import paths) to repo filesystem paths under ./src
+# Example line: github.com/org/repo/Api/foo.go:NN.MM,...
+# We want:      src/Api/foo.go:NN.MM,...
+# Handle all service modules under ./src/<service>/go.mod
+for gm in ./src/*/go.mod; do
+  svc="$(basename "$(dirname "${gm}")")";
+
+  # Extract the repo root module prefix (everything before /<service>)
+  root_prefix="$(sed -n 's/^module[[:space:]]\+\(.*\)\/'"${svc}"'$/\1/p' "${gm}")";
+  if [ -z "${root_prefix}" ]; then
+    continue;
+  fi
+
+  # Rewrite lines 2..end (skip the "mode: ..." header) in place
+  # Replace "^github.com/org/repo/<service>/" with "src/<service>/"
+  sed -E -i '2,$ s#^'"${root_prefix}"'/'"${svc}"'/#src/'"${svc}"'/#' "${TEST_COVERAGE_DIR_PATH}/${TEST_COVERAGE_FILE_NAME}";
+done
