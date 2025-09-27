@@ -19,6 +19,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 rm -rf .scannerwork;
+mkdir -p .scannerwork;
+chmod -R a+rwX .scannerwork;
 
 EXTRA_OPTS="";
 PR_KEY="";
