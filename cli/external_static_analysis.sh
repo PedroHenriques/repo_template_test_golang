@@ -57,14 +57,13 @@ CMD="sonar-scanner \
   -Dsonar.organization=${EXTERNAL_STATIC_ANALYSIS_ORG} \
   -Dsonar.host.url=${EXTERNAL_STATIC_ANALYSIS_HOST} \
   -Dsonar.sources=./src \
-  -Dsonar.tests=./src \
-  -Dsonar.test.inclusions=**/*_test.go \
-  -Dsonar.exclusions=**/vendor/**,setup/**,app/setup/** \
+  -Dsonar.exclusions=**/*_test.go,**/vendor/**,setup/**,app/setup/** \
   -Dsonar.coverage.exclusions=setup/**,app/setup/** \
   -Dsonar.go.coverage.reportPaths=${TEST_COVERAGE_DIR_PATH}/${TEST_COVERAGE_FILE_NAME} \
   ${EXTRA_OPTS} \
   -Dsonar.qualitygate.wait=${SONAR_QG_WAIT} \
-  -Dsonar.qualitygate.timeout=${SONAR_QG_TIMEOUT_SEC}
+  -Dsonar.qualitygate.timeout=${SONAR_QG_TIMEOUT_SEC} \
+  -Dsonar.log.level=DEBUG -X
 ";
 
 if [ $USE_DOCKER -eq 1 ]; then

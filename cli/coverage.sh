@@ -50,14 +50,8 @@ fi
 # Handle all service modules under ./src/<service>/go.mod
 for gm in ./src/*/go.mod; do
   svc="$(basename "$(dirname "${gm}")")";
-
-  # Extract the repo root module prefix (everything before /<service>)
-  root_prefix="$(sed -n 's/^module[[:space:]]\+\(.*\)\/'"${svc}"'$/\1/p' "${gm}")";
-  if [ -z "${root_prefix}" ]; then
-    continue;
-  fi
-
-  # Rewrite lines 2..end (skip the "mode: ..." header) in place
-  # Replace "^github.com/org/repo/<service>/" with "src/<service>/"
-  sed -E -i '2,$ s#^'"${root_prefix}"'/'"${svc}"'/#src/'"${svc}"'/#' "${TEST_COVERAGE_DIR_PATH}/${TEST_COVERAGE_FILE_NAME}";
+  modpath="$(awk '/^module[[:space:]]/{print $2}' "${gm}")";
+  [ -n "${modpath}" ] || continue;
+  # github.com/you/repo/Api/...  ->  src/Api/...
+  sed -E -i '2,$ s#^'"${modpath}"'/#src/'"${svc}"'/#' "${TEST_COVERAGE_DIR_PATH}/${TEST_COVERAGE_FILE_NAME}";
 done
